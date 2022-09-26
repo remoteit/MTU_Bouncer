@@ -1,0 +1,13 @@
+#
+# Script to build system bin
+#
+
+exe_base="udp_mtu_server"
+
+
+cd src
+
+# Make system
+make -f makefile clean
+make -f makefile SHARED=yes EXEC=${exe_base}
+
