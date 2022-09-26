@@ -1,47 +1,46 @@
-# Echo Server 
-Simple Echo Server that allows bind address, daemonize, external on/off control, multiple onnections.
+# UDP MTU Checker
+Simple server to test the incoming MTU of a connection.   In most cases it is easy to check the outbound MTU of a network path, but not the incomming path.   This server allows you to connect to a UDP socket with netcat or similar to determine the incoming MTU of a network path.
 
 
 # Usage
 ```
-usage: ./echo_server [-p port] [-h host] [-v(erbose)] [-b(roadcast)] [-?(this message)] message to send
-        Defaults port=1024, host=127.0.0.1, verbose off, broadcast off
+usage: ./udp_mtu_server [-h] [-v(erbose)] [-d][pid file] [-l listen_tcp_port]
+         -h this output.
+         -v console debug output.
+         -d runs the program as a daemon with optional pid file.
+         -l Listen port (defaults to 9999)
 ```
 
 # Examples
 
-send a unicast packet to port 1024 on localhost containing "hello local host"
+Run the udp_mtu_server on a server:
 ```
-./udpsend hello local host
-```
-
-send a unicast packet to host 192.168.2.10 port 1234  containing "this is a test"
-```
-./udpsend -h 192.168.2.10 -p 1234  this is a test
+./udp_mtu_server
 ```
 
-send a unicast packet to host 192.168.2.10 port 1234  containing "this is a test" with verbose on
+Connect to it with netcat
 ```
-./udpsend -v -h 192.168.2.10 -p 1234  this is a test
-verbose on
-sent to 192.168.2.10:1234 the message : this is a test
+nc -u <serverIP> 9999
 ```
 
-send a broadcast packet to host 192.168.2.10 port 1234 containing "this is a test" with verbose on
+Now you can ask the server to send you a UDP packet with a payload of size <user specified>
 ```
-./udpsend -v -b -p 1234  this is a test
-verbose on
-Setting socket to broadcast.
-sent brodcast to 255.255.255.255:1234 the message : this is a test
+nc -u <serverIP> 9999
+10<ret>
+Must be between 16 and 1472
+17<ret>
+17 (45 MTU)
+...
+1472<ret>
+1472 (1500 MTU)
+..............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
 ```
 
 # Building
 Using the makefile in the src directory should built on most linux/unix platforms.   There is a win32 project for building on windows consol app also.
 
-
 #License
-see license file at github
-https://github.com/lowerpower/udpsend
+MIT
 
 
 
