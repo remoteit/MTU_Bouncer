@@ -123,6 +123,34 @@ set_sock_recv_timeout(SOCKET lsock, int secs)
     return(ret);
 }
 
+
+// do not fragment = fragment =1
+int
+set_sock_doNotFragment(SOCKET lsock, int fragment)
+{
+    int ret = 0, i = 0;
+
+    if (fragment)
+        i = 1;
+#if defined(WIN32)
+    ret = setsockopt(lsock, IPPROTO_IP, IP_DONTFRAGMENT, (char*)&i, sizeof(int));
+#elif defined(LINUX)
+    if (fragment)
+        i = IP_PMTUDISC_DO;
+    else
+        i = IP_PMTUDISC_DONT;
+    ret = setsockopt(lsock, IPPROTO_IP, IP_MTU_DISCOVER, (const void*)&i, sizeof(int));
+
+#elif defined(MACOSX) || defined(IOS)
+    // do nothings mac does not support this	
+#pragma message("OSX does not support IP_DONTFRAGMENT")
+#elif	defined(BSD_TYPE)
+    ret = setsockopt(lsock, IPPROTO_IP, IP_DONTFRAGMENT, &i, sizeof(int));
+#endif
+    DEBUG1("do not fragment returened %d\n", ret);
+    return(ret);
+}
+
 //
 // return -1 on error or socket
 //
@@ -163,7 +191,7 @@ udp_listener(U16 port, IPADDR ip)
 
 int main(int argc, char **argv) {
   int c,optval = 1;
-  int err,ret,len;
+  int size,ret,len,dfrag;
   int slen;
   char message[4096];
   struct sockaddr_in client,server;
@@ -245,6 +273,7 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
             case 'p':
                 // Override Port
                 mtu.listen_port=atoi(optarg);
+                break;
             case 'v':
                 mtu.verbose++;
                 break;
@@ -297,26 +326,39 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
   go = 1;
   while (go)
   {
+      // by default DF bit set
+      dfrag = 1;
 
        // receive here
       memset(&client, '\0', sizeof(struct sockaddr));
       slen = sizeof(struct sockaddr_in);
+      memset(message, '\0', 4096);
       ret = (int)recvfrom(mtu.listen_soc, (char*)message, 1024, 0, (struct sockaddr*)&client, (socklen_t*)&slen);
 
       if (ret > 0)
       {
-          // parse number
-          ret = atoi(message);
-          if ((ret >= 16) && (ret <= 1472))
+          if (strchr(message,'f') || strchr(message,'F'))
           {
-              memset(message, 46, 2048);
-              sprintf(message, "%d (%d MTU)\n", ret, ret + 28);
-              len = ret;
-              message[ret-1] = '\n';
+              dfrag = 0;
+              if (mtu.verbose) printf("DF Cleared\n");
+          }
+          // parse number support F# for just #
+          size = atoi(message);
+          //if ((ret >= 16) && (ret <= 1472))
+          if ((size >= 0) && (size <= 2000))
+          {
+              if (size < 17)
+                  size = 17;
+              memset(message, 46, 4096);
+              sprintf(message, "%d (%d MTU DF=%d)\n", size, size + 28,dfrag);
+              //len = strlen(message);
+              len = size;              
+              message[size-1] = '\n';
           }
           else
           {
-              sprintf(message, "Must be between 16 and 1472\n");
+              //sprintf(message, "Must be between 16 and 1472\n");
+              sprintf(message, "Must be between 20 and 2000 (add f on end to allow fragmentation)\n");
               len = strlen(message);
           }
           //
@@ -327,11 +369,23 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
           server.sin_addr.s_addr = client.sin_addr.s_addr;
           server.sin_port = client.sin_port;
           //
-
+          set_sock_doNotFragment(mtu.listen_soc, dfrag);
+          //
           ret = sendto(mtu.listen_soc, (char*)message, len, 0, (struct sockaddr*)&server, sizeof(struct sockaddr));
+          if (ret < 0)
+          {
+              if (mtu.verbose) printf("Socket error %s, code %d\n", get_last_error_str(), get_last_error());
+              sprintf(message, "On size %d (%d MTU dfrag=%d) sender failed to send with error %s code %d\n", size, size + 28, dfrag, get_last_error_str(), get_last_error());
+              len = strlen(message);
+              memset(&server, '\0', (sizeof(struct sockaddr)));
+              server.sin_family = AF_INET;
+              server.sin_addr.s_addr = client.sin_addr.s_addr;
+              server.sin_port = client.sin_port;
+              sendto(mtu.listen_soc, (char*)message, len, 0, (struct sockaddr*)&server, sizeof(struct sockaddr));
+          }
       }
       else
-          printf(".");
+          if(mtu.verbose>1) printf(".");
 
 
   }

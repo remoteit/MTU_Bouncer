@@ -266,6 +266,21 @@ int get_last_error()
 #endif
 }
 
+char* get_last_error_str()
+{
+#if defined(_WIN32)
+	static char message[256] = { 0 };
+	FormatMessage(
+		FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+		0, WSAGetLastError(), 0, message, 256, 0);
+	return(message);
+#else
+	return(strerror(errno));
+#endif
+}
+
+
+
 /*
 void
 log_lasterror(U8 *msg)
@@ -374,6 +389,35 @@ network_init()
 
 #endif
 return(0);
+}
+
+int networkQuit(void)
+{
+#if defined(WIN32) || defined(WINCE)
+	return WSACleanup();
+#else
+	return 0;
+#endif
+}
+
+
+/* Note: For POSIX, typedef SOCKET as an int. */
+
+int sockClose(SOCKET sock)
+{
+
+	int status = 0;
+
+#ifdef _WIN32
+	status = shutdown(sock, SD_BOTH);
+	if (status == 0) { status = closesocket(sock); }
+#else
+	status = shutdown(sock, SHUT_RDWR);
+	if (status == 0) { status = close(sock); }
+#endif
+
+	return status;
+
 }
 
 

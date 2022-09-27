@@ -12,7 +12,7 @@
 
 #include <stdio.h>
 
-#define	VERSION		"0.1"
+#define	VERSION		"0.2"
 
 
 #define _CRT_SECURE_NO_WARNINGS 1
@@ -56,11 +56,11 @@
 //#ifndef  WIN32_LEAN_AND_MEAN 
 //#include <winsock.h>
 #include <winsock2.h>
+#include <ws2tcpip.h>
 #include <windows.h>
 
 #include <process.h>    /* _beginthread, _endthread */
 
-#include <winsock2.h>
 #include <stdlib.h>
 #include <conio.h>
 #include <io.h>

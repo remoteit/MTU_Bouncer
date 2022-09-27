@@ -15,7 +15,10 @@
 
 #include "config.h"
 
+#define Net_Get_last_error get_last_error
 int get_last_error(void);
+char* get_last_error_str(void);
+
 int	set_sock_nonblock(SOCKET);
 U32 second_count(void);
 U16	hund_ms_count(void);
@@ -36,6 +39,15 @@ int yrand(int max);
 void yrand_seed(void);
 
 int test_udp_bind(U16 port);
+
+//Cross-platform error code
+#if defined(_WIN32)
+#define GETSOCKETERRNO() (WSAGetLastError())
+#else
+#define GETSOCKETERRNO() (errno)
+#endif
+
+
 
 #endif
 
