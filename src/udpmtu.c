@@ -93,9 +93,9 @@ void usage(int argc, char **argv)
 {
   startup_banner();
 
-  printf("usage: %s [-h] [-v(erbose)] [-d][pid file] [-f config_file] [-l listen_tcp_port] [-u user_2_run_as] [-c control_port] \n",argv[0]);
+  printf("usage: %s [-h] [-v(erbose)] [-d][pid file][-l listen_tcp_port]\n",argv[0]);
   printf("\t -h this output.\n");
-  printf("\t -v console debug output.\n");
+  printf("\t -v console debug output (use -v -v for maximum verbosity).\n");
   printf("\t -d runs the program as a daemon with optional pid file.\n");
   //printf("\t -f specify a config file.\n");
   printf("\t -l Listen port (defaults to 9999)\n");
@@ -189,59 +189,60 @@ udp_listener(U16 port, IPADDR ip)
 	return(new_soc);
 }
 
-int main(int argc, char **argv) {
-  int c,optval = 1;
-  int size,ret,len,dfrag;
-  int slen;
-  char message[4096];
-  struct sockaddr_in client,server;
-  MTU	mtu;
-
- 
-  //
-  // Banner
-  startup_banner();
-  //
-  // Startup Network
-  network_init();
-  //Y_Init_Select();												// were going to use the select engine
-  //
-  // Set defaults
-  memset(&mtu, 0, sizeof(MTU));
-  mtu.listen_port	= MTU_DEFALT_LISTEN_PORT;					// service defaults to port 9999
-  mtu.bind_IP.ip32 = 0;
+int main(int argc, char** argv) {
+    int c;
+    int size, ret, len, dfrag;
+    int slen;
+    char message[4096];
+    struct sockaddr_in client, server;
+    MTU	mtu_b;
+    MTU *mtu = &mtu_b;
 
 
-  //------------------------------------------------------------------
-  // Initialize error handling and signals
-  //------------------------------------------------------------------
+    //
+    // Banner
+    startup_banner();
+    //
+    // Startup Network
+    network_init();
+    //Y_Init_Select();												// were going to use the select engine
+    //
+    // Set defaults
+    memset(mtu, 0, sizeof(MTU));
+    mtu->listen_port = MTU_DEFALT_LISTEN_PORT;					// service defaults to port 9999
+    mtu->bind_IP.ip32 = 0;
+
+
+    //------------------------------------------------------------------
+    // Initialize error handling and signals
+    //------------------------------------------------------------------
 #if defined(WIN32) 
-if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
-{
-  // unable to install handler... 
-  // display message to the user
-  yprintf("Error - Unable to install control handler!\n");
-  exit(0);
-}
+    if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler, TRUE) == FALSE)
+    {
+        // unable to install handler... 
+        // display message to the user
+        yprintf("Error - Unable to install control handler!\n");
+        exit(0);
+    }
 #else
 #if !defined(WINCE)
   //  SetConsoleCtrlHandle(termination_handler,TRUE);
 
-  if (signal (SIGINT, termination_handler) == SIG_IGN)
-      signal (SIGINT, SIG_IGN);
-  if (signal (SIGTERM, termination_handler) == SIG_IGN)
-      signal (SIGTERM, SIG_IGN);
-  if (signal (SIGILL , termination_handler) == SIG_IGN)
-      signal (SIGILL , SIG_IGN);
-  if (signal (SIGFPE , termination_handler) == SIG_IGN)
-      signal (SIGFPE , SIG_IGN);
-  //if (signal (SIGSEGV , termination_handler) == SIG_IGN)
-  //  signal (SIGSEGV , SIG_IGN);
+    if (signal(SIGINT, termination_handler) == SIG_IGN)
+        signal(SIGINT, SIG_IGN);
+    if (signal(SIGTERM, termination_handler) == SIG_IGN)
+        signal(SIGTERM, SIG_IGN);
+    if (signal(SIGILL, termination_handler) == SIG_IGN)
+        signal(SIGILL, SIG_IGN);
+    if (signal(SIGFPE, termination_handler) == SIG_IGN)
+        signal(SIGFPE, SIG_IGN);
+    //if (signal (SIGSEGV , termination_handler) == SIG_IGN)
+    //  signal (SIGSEGV , SIG_IGN);
 #if defined(LINUX) || defined(MACOSX) || defined(IOS)
-  if (signal (SIGXCPU , termination_handler) == SIG_IGN)
-      signal (SIGXCPU , SIG_IGN);
-  if (signal (SIGXFSZ , termination_handler) == SIG_IGN)
-      signal (SIGXFSZ , SIG_IGN);
+    if (signal(SIGXCPU, termination_handler) == SIG_IGN)
+        signal(SIGXCPU, SIG_IGN);
+    if (signal(SIGXFSZ, termination_handler) == SIG_IGN)
+        signal(SIGXFSZ, SIG_IGN);
 #endif
 #endif
 #endif
@@ -251,144 +252,167 @@ if (SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler,TRUE)==FALSE)
     //
     while ((c = getopt(argc, argv, "p:d:vh")) != EOF)
     {
-    	switch (c)
+        switch (c)
         {
-            case 0:
-                break;
-            case 'd':
-                // Startup as daemon with pid file
-                if(0!=optarg)
-                {
-                    strncpy(mtu.pidfile,optarg,MAX_PATH-1);
-                    printf("Starting up as daemon with pidfile %s\n",mtu.pidfile);
-                }
-                else
-                {
-                    printf("Starting up as daemon with no pidfile.\n");
-                    mtu.pidfile[0]=0;
-                }
-                global_flag|=GF_DAEMON;
-            
-                break;
-            case 'p':
-                // Override Port
-                mtu.listen_port=atoi(optarg);
-                break;
-            case 'v':
-                mtu.verbose++;
-                break;
-            case 'h':
-                usage (argc,argv);
-                break;
-            default:
-                usage (argc,argv);
-                break;
-   		}
-	}
+        case 0:
+            break;
+        case 'd':
+            // Startup as daemon with pid file
+            if (0 != optarg)
+            {
+                strncpy(mtu->pidfile, optarg, MAX_PATH - 1);
+                printf("Starting up as daemon with pidfile %s\n", mtu->pidfile);
+            }
+            else
+            {
+                printf("Starting up as daemon with no pidfile.\n");
+                mtu->pidfile[0] = 0;
+            }
+            global_flag |= GF_DAEMON;
+
+            break;
+        case 'p':
+            // Override Port
+            mtu->listen_port = atoi(optarg);
+            break;
+        case 'v':
+            mtu->verbose++;
+            printf("verbose level increased %d\n", mtu->verbose);
+            break;
+        case 'h':
+            usage(argc, argv);
+            break;
+        default:
+            usage(argc, argv);
+            break;
+        }
+    }
 
     // 
     // Socket must be bound before Daemonize because we may drop privilages here
     //
-	mtu.listen_soc=udp_listener(mtu.listen_port, mtu.bind_IP);
+    mtu->listen_soc = udp_listener(mtu->listen_port, mtu->bind_IP);
 
-	if (mtu.listen_soc < 0) {
-		perror("bind failed");
-		exit(1);
-	}
+    if (mtu->listen_soc < 0) {
+        perror("bind failed");
+        exit(1);
+    }
 
 #if !defined(WIN32)
     //
     // Should Daemonize here,  
     //
-    if(global_flag&GF_DAEMON)
+    if (global_flag & GF_DAEMON)
     {
         // Daemonize this
-        daemonize(mtu.pidfile,0,0,0,0,0,0);
+        daemonize(mtu->pidfile, 0, 0, 0, 0, 0, 0);
         // Setup logging
-        openlog("mtu_server",LOG_PID|LOG_CONS,LOG_USER);
-        syslog(LOG_INFO,"UDP MTU Server built "__DATE__ " at " __TIME__ "\n");
-        syslog(LOG_INFO,"   Version " VERSION " - (c)2022 mycal.net\n");
-        syslog(LOG_INFO,"Starting up as daemon\n");
+        openlog("mtu_server", LOG_PID | LOG_CONS, LOG_USER);
+        syslog(LOG_INFO, "UDP MTU Server built "__DATE__ " at " __TIME__ "\n");
+        syslog(LOG_INFO, "   Version " VERSION " - (c)2022 mycal.net\n");
+        syslog(LOG_INFO, "Starting up as daemon\n");
     }
 #endif
 
 
 
 
-  // add the listen socket to select for rx
-  //Y_Set_Select_rx(mtu.listen_soc);
+    // add the listen socket to select for rx
+    //Y_Set_Select_rx(mtu.listen_soc);
 
-  printf("UDP MTU started up on port %d\n",mtu.listen_port);
+    printf("UDP MTU started up on port %d\n", mtu->listen_port);
 
-  set_sock_recv_timeout(mtu.listen_soc, 1);
+    set_sock_recv_timeout(mtu->listen_soc, 1);
 
-  // This code only accepts one socket at a time
-  go = 1;
-  while (go)
-  {
-      // by default DF bit set
-      dfrag = 1;
+    // This code only accepts one socket at a time
+    go = 1;
+    while (go)
+    {
+        // by default DF bit set
+        dfrag = 1;
 
-       // receive here
-      memset(&client, '\0', sizeof(struct sockaddr));
-      slen = sizeof(struct sockaddr_in);
-      memset(message, '\0', 4096);
-      ret = (int)recvfrom(mtu.listen_soc, (char*)message, 1024, 0, (struct sockaddr*)&client, (socklen_t*)&slen);
+        // receive here
+        memset(&client, '\0', sizeof(struct sockaddr));
+        slen = sizeof(struct sockaddr_in);
+        memset(message, '\0', 4096);
+        ret = (int)recvfrom(mtu->listen_soc, (char*)message, 4095, 0, (struct sockaddr*)&client, (socklen_t*)&slen);
 
-      if (ret > 0)
-      {
-          if (strchr(message,'f') || strchr(message,'F'))
-          {
-              dfrag = 0;
-              if (mtu.verbose) printf("DF Cleared\n");
-          }
-          // parse number support F# for just #
-          size = atoi(message);
-          //if ((ret >= 16) && (ret <= 1472))
-          if ((size >= 0) && (size <= 2000))
-          {
-              if (size < 17)
-                  size = 17;
-              memset(message, 46, 4096);
-              sprintf(message, "%d (%d MTU DF=%d)\n", size, size + 28,dfrag);
-              //len = strlen(message);
-              len = size;              
-              message[size-1] = '\n';
-          }
-          else
-          {
-              //sprintf(message, "Must be between 16 and 1472\n");
-              sprintf(message, "Must be between 20 and 2000 (add f on end to allow fragmentation)\n");
-              len = strlen(message);
-          }
-          //
-          // Send message always non encrypted
-          //
-          memset(&server, '\0', (sizeof(struct sockaddr)));
-          server.sin_family = AF_INET;
-          server.sin_addr.s_addr = client.sin_addr.s_addr;
-          server.sin_port = client.sin_port;
-          //
-          set_sock_doNotFragment(mtu.listen_soc, dfrag);
-          //
-          ret = sendto(mtu.listen_soc, (char*)message, len, 0, (struct sockaddr*)&server, sizeof(struct sockaddr));
-          if (ret < 0)
-          {
-              if (mtu.verbose) printf("Socket error %s, code %d\n", get_last_error_str(), get_last_error());
-              sprintf(message, "On size %d (%d MTU dfrag=%d) sender failed to send with error %s code %d\n", size, size + 28, dfrag, get_last_error_str(), get_last_error());
-              len = strlen(message);
-              memset(&server, '\0', (sizeof(struct sockaddr)));
-              server.sin_family = AF_INET;
-              server.sin_addr.s_addr = client.sin_addr.s_addr;
-              server.sin_port = client.sin_port;
-              sendto(mtu.listen_soc, (char*)message, len, 0, (struct sockaddr*)&server, sizeof(struct sockaddr));
-          }
-      }
-      else
-          if(mtu.verbose>1) printf(".");
+        if (ret > 0)
+        {
+            if (mtu->verbose)
+            {
+                // log incoming packets
+                printf("incoming packet from %s:%d of length %d : %s", inet_ntoa(client.sin_addr), htons(client.sin_port), ret, message);
+            }
+            if (strchr(message, 'f') || strchr(message, 'F'))
+            {
+                dfrag = 0;
+                if (mtu->verbose) printf("DF Cleared\n");
+            }
+            // parse number support F# for just #
+            size = atoi(message);
+            if ((size >= 20) && (size <= 4000))
+            {
+                int return_index = 0;
+
+                if (size < 20)
+                    size = 20;
+                memset(message, 46, 4096);
+                sprintf(message, "%d (%d MTU DF=%d)\n", size, size + 28, dfrag);
+                //len = strlen(message);
+                len = size;
+                return_index = size - 2;
+                // netcat will only display x bytes so put the \n at that location if longer
+                if (return_index > 1023)
+                    return_index = 1023;
+                message[return_index] = '\n';
+                message[return_index+1] = 0;
+
+            }
+            else
+            {
+                //sprintf(message, "Must be between 16 and 1472\n");
+                sprintf(message, "Must be between 20 and 4000 (add f on end to allow fragmentation)\n");
+                len = strlen(message);
+            }
+            //
+            // Send message always non encrypted
+            //
+            memset(&server, '\0', (sizeof(struct sockaddr)));
+            server.sin_family = AF_INET;
+            server.sin_addr.s_addr = client.sin_addr.s_addr;
+            server.sin_port = client.sin_port;
+            //
+            set_sock_doNotFragment(mtu->listen_soc, dfrag);
+            //
+            ret = sendto(mtu->listen_soc, (char*)message, len, 0, (struct sockaddr*)&server, sizeof(struct sockaddr));
+            if (ret < 0)
+            {
+                if (mtu->verbose) printf("Socket error %s, code %d\n", get_last_error_str(), get_last_error());
+                sprintf(message, "On size %d (%d MTU dfrag=%d) sender failed to send with error %s code %d\n", size, size + 28, dfrag, get_last_error_str(), get_last_error());
+                len = strlen(message);
+                memset(&server, '\0', (sizeof(struct sockaddr)));
+                server.sin_family = AF_INET;
+                server.sin_addr.s_addr = client.sin_addr.s_addr;
+                server.sin_port = client.sin_port;
+                sendto(mtu->listen_soc, (char*)message, len, 0, (struct sockaddr*)&server, sizeof(struct sockaddr));
+            }
+            else
+            {
+                if (mtu->verbose) printf("Sent buffer size %d\n",ret);
+            }
+        }
+        else
+            if (mtu->verbose > 1) printf(".");
 
 
-  }
+    }
+#if !defined(WIN32)
+    if (global_flag & GF_DAEMON)
+    {
+        syslog(LOG_INFO, "Exiting.\n");
+    }
+#endif
 }
 
 
